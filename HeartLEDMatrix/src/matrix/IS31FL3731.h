@@ -1,139 +1,162 @@
-#ifndef CH32TEST_IS31FL3731_H
-#define CH32TEST_IS31FL3731_H
+/**
+ * @file IS31FL3731.h
+ * @brief Driver for the IS31FL3731 LED matrix controller.
+ * @author Ed Fillingham
+ * @date April 2026
+ *
+ * Bare-metal I2C driver for the IS31FL3731 LED matrix IC.
+ * Implements double-buffering for flicker-free updates.
+ */
 
-#include <Arduino.h> // Gives us access to the CH32V003 hardware registers
+#ifndef HEARTLEDMATRIX_IS31FL3731_H
+#define HEARTLEDMATRIX_IS31FL3731_H
 
+#include <Arduino.h>
+
+/**
+ * @class IS31FL3731
+ * @brief Interface to the IS31FL3731 LED matrix driver IC.
+ *
+ * Uses bare-metal I2C on CH32V003 microcontroller with double-buffering
+ * to achieve smooth, flicker-free LED animations.
+ */
 class IS31FL3731 {
-  private:
-    uint8_t _i2c_addr;
-    uint8_t _pwmBuffer[144];
-    uint8_t _activeFrame = 0; // 0 for Frame 1, 1 for Frame 2
+private:
+    uint8_t _i2c_addr;      ///< I2C address of the device
+    uint8_t _pwmBuffer[144]; ///< PWM brightness buffer for all 144 LED outputs
+    uint8_t _activeFrame;    ///< Currently displayed frame (0 or 1)
 
-    // --- BARE METAL I2C HARDWARE DRIVER ---
-
+    /// Generate I2C START condition and address the device
     void i2c_start() {
-        I2C1->CTLR1 |= I2C_CTLR1_START; // Generate Start condition
-        while(!(I2C1->STAR1 & I2C_STAR1_SB)); // Wait for Start bit
+        I2C1->CTLR1 |= I2C_CTLR1_START;
+        while (!(I2C1->STAR1 & I2C_STAR1_SB));
 
-        // Send the 7-bit address shifted left by 1 (Write mode = bit 0 is low)
         I2C1->DATAR = (_i2c_addr << 1);
-
-        while(!(I2C1->STAR1 & I2C_STAR1_ADDR)); // Wait for address match
-        (void)I2C1->STAR2; // Clear ADDR flag by reading STAR2
+        while (!(I2C1->STAR1 & I2C_STAR1_ADDR));
+        (void)I2C1->STAR2;
     }
 
+    /// Write a single byte over I2C
     void i2c_write(uint8_t data) {
-        while(!(I2C1->STAR1 & I2C_STAR1_TXE)); // Wait until transmit buffer is empty
+        while (!(I2C1->STAR1 & I2C_STAR1_TXE));
         I2C1->DATAR = data;
     }
 
+    /// Generate I2C STOP condition
     void i2c_stop() {
-        while(!(I2C1->STAR1 & I2C_STAR1_TXE)); // Wait for last byte to leave buffer
-        while(!(I2C1->STAR1 & I2C_STAR1_BTF)); // Wait for byte transfer to physically finish
-        I2C1->CTLR1 |= I2C_CTLR1_STOP; // Generate Stop condition
+        while (!(I2C1->STAR1 & I2C_STAR1_TXE));
+        while (!(I2C1->STAR1 & I2C_STAR1_BTF));
+        I2C1->CTLR1 |= I2C_CTLR1_STOP;
     }
 
-    // --------------------------------------
-
+    /**
+     * @brief Select a page on the IS31FL3731 chip.
+     * @param page Page number (0-1 for frames, 0x0B for function registers)
+     */
     void selectPage(uint8_t page) {
-      i2c_start();
-      i2c_write(0xFD); // Command Register
-      i2c_write(page);
-      i2c_stop();
+        i2c_start();
+        i2c_write(0xFD);
+        i2c_write(page);
+        i2c_stop();
     }
 
+    /**
+     * @brief Write a value to an IS31FL3731 register.
+     * @param reg Register address
+     * @param data Value to write
+     */
     void writeRegister(uint8_t reg, uint8_t data) {
-      i2c_start();
-      i2c_write(reg);
-      i2c_write(data);
-      i2c_stop();
+        i2c_start();
+        i2c_write(reg);
+        i2c_write(data);
+        i2c_stop();
     }
 
-  public:
-    // Default I2C address is usually 0x74 when AD pin is tied to GND
-    IS31FL3731(uint8_t addr = 0x74) : _i2c_addr(addr) {}
+public:
+    /**
+     * @brief Construct an IS31FL3731 driver instance.
+     * @param addr I2C address (default 0x74, adjustable via AD pin)
+     */
+    IS31FL3731(uint8_t addr = 0x74) : _i2c_addr(addr), _activeFrame(0) {}
 
+    /**
+     * @brief Initialize the IS31FL3731 and prepare for display updates.
+     * @param ledMask Optional 18-byte mask to enable/disable specific LED outputs
+     */
     void begin(const uint8_t* ledMask = nullptr) {
-      // 1. INITIALIZE CH32V003 HARDWARE I2C (PC1 = SDA, PC2 = SCL)
-      RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO; // Enable GPIOC & AFIO clocks
-      RCC->APB1PCENR |= RCC_APB1Periph_I2C1; // Enable I2C1 clock
+        // Initialize CH32V003 I2C hardware (PC1=SDA, PC2=SCL)
+        RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO;
+        RCC->APB1PCENR |= RCC_APB1Periph_I2C1;
 
-      // Configure PC1 and PC2 as Alternate Function Open Drain (50MHz)
-      GPIOC->CFGLR &= ~(0xFF << 4); // Clear config for PC1 and PC2
-      GPIOC->CFGLR |= (0xFF << 4);  // 0xF per pin = AF Open Drain
+        GPIOC->CFGLR &= ~(0xFF << 4);
+        GPIOC->CFGLR |= (0xFF << 4);
 
-      // Reset and configure the I2C1 Peripheral
-      RCC->APB1PRSTR |= RCC_APB1Periph_I2C1;
-      RCC->APB1PRSTR &= ~RCC_APB1Periph_I2C1;
+        RCC->APB1PRSTR |= RCC_APB1Periph_I2C1;
+        RCC->APB1PRSTR &= ~RCC_APB1Periph_I2C1;
 
-      // Set peripheral clock to 48MHz (default system clock)
-      I2C1->CTLR2 = 48;
-      // Fast Mode (400kHz): I2C_CKCFG_FS bit | (48MHz / (3 * 400kHz) = 40)
-      I2C1->CKCFGR = I2C_CKCFGR_FS | 40;
-      // Enable I2C hardware
-      I2C1->CTLR1 |= I2C_CTLR1_PE;
+        I2C1->CTLR2 = 48;
+        I2C1->CKCFGR = I2C_CKCFGR_FS | 40;
+        I2C1->CTLR1 |= I2C_CTLR1_PE;
 
+        // Wake up and configure the LED controller
+        selectPage(0x0B);
+        writeRegister(0x0A, 0x00);
+        delay(10);
+        writeRegister(0x0A, 0x01);
+        writeRegister(0x00, 0x00);
+        writeRegister(0x01, 0x00);
 
-      // 2. IS31FL3731 HARDWARE WAKEUP & SETUP
-      selectPage(0x0B); // Enter Function Register Page
-      writeRegister(0x0A, 0x00); // Software shutdown to reset
-      delay(10);
-      writeRegister(0x0A, 0x01); // Normal operation
-      writeRegister(0x00, 0x00); // Set to Picture Mode
-      writeRegister(0x01, 0x00); // Display Frame 1
+        // Initialize both display frames
+        for (uint8_t frame = 0; frame < 2; frame++) {
+            selectPage(frame);
 
+            for (uint8_t i = 0; i < 18; i++) {
+                uint8_t mask = ledMask ? ledMask[i] : 0xFF;
+                writeRegister(i, mask);
+            }
 
-      // 3. INITIALIZE FRAME 1 AND FRAME 2
-      for (uint8_t frame = 0; frame < 2; frame++) {
-        selectPage(frame);
-
-        // Write the 18-byte LED Control Mask (0x00 to 0x11)
-        for (uint8_t i = 0; i < 18; i++) {
-          uint8_t mask = ledMask ? ledMask[i] : 0xFF; // Default all ON
-          writeRegister(i, mask);
+            i2c_start();
+            i2c_write(0x24);
+            for (uint8_t j = 0; j < 144; j++) {
+                i2c_write(0);
+            }
+            i2c_stop();
         }
 
-        // Clear all PWM registers (0x24 to 0xB3) to 0
-        // Because we bypass Wire, we can send all 144 bytes in ONE massive transaction!
+        memset(_pwmBuffer, 0, sizeof(_pwmBuffer));
+        _activeFrame = 0;
+    }
+
+    /**
+     * @brief Set the brightness of an LED in the buffer.
+     * @param index LED index (0-143)
+     * @param brightness Brightness level (0-255)
+     */
+    void drawPixel(uint8_t index, uint8_t brightness) {
+        if (index < 144) {
+            _pwmBuffer[index] = brightness;
+        }
+    }
+
+    /**
+     * @brief Write the buffer to the display and swap frames for flicker-free updates.
+     */
+    void show() {
+        uint8_t hiddenFrame = (_activeFrame == 0) ? 1 : 0;
+        selectPage(hiddenFrame);
+
         i2c_start();
         i2c_write(0x24);
-        for (uint8_t j = 0; j < 144; j++) {
-            i2c_write(0);
+        for (uint8_t i = 0; i < 144; i++) {
+            i2c_write(_pwmBuffer[i]);
         }
         i2c_stop();
-      }
 
-      // Clear local SRAM buffer
-      memset(_pwmBuffer, 0, sizeof(_pwmBuffer));
-      _activeFrame = 0;
-    }
+        selectPage(0x0B);
+        writeRegister(0x01, hiddenFrame);
 
-    void drawPixel(uint8_t index, uint8_t brightness) {
-      if (index < 144) {
-        _pwmBuffer[index] = brightness;
-      }
-    }
-
-    void show() {
-      // Determine which frame is currently hidden
-      uint8_t hiddenFrame = (_activeFrame == 0) ? 1 : 0;
-      selectPage(hiddenFrame);
-
-      // STREAM THE ENTIRE BUFFER INSTANTLY
-      i2c_start();
-      i2c_write(0x24); // 0x24 is the start of the PWM registers
-      for (uint8_t i = 0; i < 144; i++) {
-        i2c_write(_pwmBuffer[i]);
-      }
-      i2c_stop();
-
-      // Swap the active frame on the physical display
-      selectPage(0x0B);
-      writeRegister(0x01, hiddenFrame);
-
-      // Update our local state
-      _activeFrame = hiddenFrame;
+        _activeFrame = hiddenFrame;
     }
 };
 
-#endif //CH32TEST_IS31FL3731_H
+#endif // HEARTLEDMATRIX_IS31FL3731_H

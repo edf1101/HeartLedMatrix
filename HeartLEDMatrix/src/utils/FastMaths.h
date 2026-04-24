@@ -1,9 +1,19 @@
-#ifndef CH32TEST_FASTMATHS_H
-#define CH32TEST_FASTMATHS_H
+/**
+ * @file FastMaths.h
+ * @brief Fast approximation functions for LED animation math.
+ * @author Ed Fillingham
+ * @date April 2026
+ *
+ * Provides optimized implementations of trigonometry, distance, and random number
+ * generation suitable for embedded systems without floating-point hardware.
+ */
+
+#ifndef HEARTLEDMATRIX_FASTMATHS_H
+#define HEARTLEDMATRIX_FASTMATHS_H
 
 #include <stdint.h>
 
-// A full sine wave pre-calculated and mapped to 0-255.
+/// Precomputed sine lookup table (0-255 scale) for fast trigonometry
 const uint8_t sin8_lut[256] = {
     128, 131, 134, 137, 140, 143, 146, 149, 152, 155, 158, 162, 165, 167, 170, 173,
     176, 179, 182, 185, 188, 190, 193, 196, 198, 201, 203, 206, 208, 211, 213, 215,
@@ -23,43 +33,57 @@ const uint8_t sin8_lut[256] = {
      79,  82,  85,  88,  90,  93,  97, 100, 103, 106, 109, 112, 115, 118, 121, 124
 };
 
-// ---------------------------------------------------------
-// RAW 8-BIT MATH (0-255 scale)
-// Use these if you need absolute maximum execution speed
-// ---------------------------------------------------------
+/**
+ * @defgroup FastMath8 Raw 8-Bit Math Functions
+ * @brief Fast trigonometry using 8-bit angle scale (0-255 = 0-360°).
+ * @{
+ */
+
+/// Get sine of an 8-bit angle (0-255 = 0-360°)
 inline uint8_t sin8(uint8_t angle8) {
     return sin8_lut[angle8];
 }
 
+/// Get cosine of an 8-bit angle (0-255 = 0-360°)
 inline uint8_t cos8(uint8_t angle8) {
     return sin8_lut[(uint8_t)(angle8 + 64)];
 }
 
-// ---------------------------------------------------------
-// DEVELOPER-FRIENDLY MATH (0-360 Degree scale)
-// Automatically handles degrees and safely wraps >360 values
-// ---------------------------------------------------------
+/** @} */
+
+/**
+ * @defgroup FastMathDeg Degree-Based Math Functions
+ * @brief Trigonometry using degrees (0-360°).
+ * @{
+ */
+
+/// Get sine of an angle in degrees
 inline uint8_t sin_deg(uint16_t degrees) {
-    degrees = degrees % 360; // Safe wrap-around
+    degrees = degrees % 360;
     uint8_t angle8 = (uint8_t)((degrees * 32) / 45);
     return sin8_lut[angle8];
 }
 
+/// Get cosine of an angle in degrees
 inline uint8_t cos_deg(uint16_t degrees) {
-    degrees = degrees % 360; // Safe wrap-around
+    degrees = degrees % 360;
     uint8_t angle8 = (uint8_t)((degrees * 32) / 45);
-    return sin8_lut[(uint8_t)(angle8 + 64)]; // Shift 90 deg (64 steps)
+    return sin8_lut[(uint8_t)(angle8 + 64)];
 }
 
-// Fast absolute value helper
+/** @} */
+
+/// Absolute value for signed 8-bit integers
 inline uint8_t abs8(int8_t x) {
     return x < 0 ? -x : x;
 }
 
-// ---------------------------------------------------------
-// FAST ATAN2 (8-Bit Angle Approximation)
-// Maps geometric X/Y coordinates to a 0-255 angle scale.
-// ---------------------------------------------------------
+/**
+ * @brief Fast arctangent of dy/dx, returning an 8-bit angle (0-255 = 0-360°).
+ * @param dy Y component of the vector
+ * @param dx X component of the vector
+ * @return Angle as 8-bit value (0-255 representing 0-360°)
+ */
 inline uint8_t atan2_8(int8_t dy, int8_t dx) {
     if (dx == 0 && dy == 0) return 0;
 
@@ -67,69 +91,79 @@ inline uint8_t atan2_8(int8_t dy, int8_t dx) {
     uint8_t abs_x = abs8(dx);
     uint8_t angle;
 
-    // Calculate the angle within the first octant (0-32)
     if (abs_x >= abs_y) {
         angle = (32 * abs_y) / abs_x;
     } else {
         angle = 64 - ((32 * abs_x) / abs_y);
     }
 
-    // Shift into the correct quadrant
     if (dx < 0) {
-        if (dy < 0) return 128 + angle;      // Quadrant 3
-        else return 128 - angle;             // Quadrant 2
+        if (dy < 0) return 128 + angle;
+        else return 128 - angle;
     } else {
-        if (dy < 0) return 256 - angle;      // Quadrant 4
-        else return angle;                   // Quadrant 1
+        if (dy < 0) return 256 - angle;
+        else return angle;
     }
 }
 
-// ---------------------------------------------------------
-// FAST DISTANCE (Octagonal Approximation)
-// Estimates sqrt(dx^2 + dy^2). Scaled up by ~8x to give us
-// high-resolution sub-pixel gradients!
-// ---------------------------------------------------------
+/**
+ * @brief Fast distance approximation using octagonal norm, scaled by ~8x.
+ *
+ * Approximates sqrt(dx² + dy²) using integer math. Scaled up by 8x
+ * to provide sub-pixel precision for smooth gradients.
+ *
+ * @param dx X distance
+ * @param dy Y distance
+ * @return Scaled distance estimate
+ */
 inline uint8_t dist_scaled(int8_t dx, int8_t dy) {
     uint8_t abs_x = abs8(dx);
     uint8_t abs_y = abs8(dy);
     uint8_t min_val = (abs_x < abs_y) ? abs_x : abs_y;
     uint8_t max_val = (abs_x > abs_y) ? abs_x : abs_y;
 
-    // distance ≈ max + (min * 0.375)
     return (max_val * 8) + (min_val * 3);
 }
 
 
-static uint32_t _rand_seed = 12345;
+/**
+ * @defgroup FastMathRandom Random Number Generation
+ * @brief Lightweight pseudo-random number generation.
+ * @{
+ */
 
+static uint32_t _rand_seed = 12345; ///< Current random seed
+
+/// Seed the random number generator
 inline void seed_rand(uint32_t s) {
     _rand_seed = s;
 }
 
+/// Generate a pseudo-random 16-bit number
 inline uint16_t fast_rand() {
     _rand_seed = (_rand_seed * 1103515245 + 12345) & 0x7fffffff;
     return (uint16_t)(_rand_seed >> 16);
 }
-// inline uint16_t fast_rand() {
-//     static uint16_t lfsr = 0xACE1u;
-//     uint16_t bit = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1;
-//     return lfsr = (lfsr >> 1) | (bit << 15);
-// }
 
-// ---------------------------------------------------------
-// TRUE EUCLIDEAN DISTANCE (8.8 Fixed Point)
-// Perfect for rendering flawless, small-scale circles.
-// Calculates sqrt(dx^2 + dy^2) without floating point math!
-// ---------------------------------------------------------
+/** @} */
+
+/**
+ * @brief True Euclidean distance using 8.8 fixed-point arithmetic.
+ *
+ * Computes perfect sqrt(dx² + dy²) using integer-only arithmetic.
+ * Result is in 8.8 fixed-point format for sub-pixel accuracy.
+ *
+ * @param dx X distance
+ * @param dy Y distance
+ * @return Distance as 8.8 fixed-point value
+ */
 inline uint16_t true_dist_fixed(int8_t dx, int8_t dy) {
-    // Shift into 8.8 fixed point, then square them into 32-bit space
     uint32_t dx32 = abs8(dx) << 8;
     uint32_t dy32 = abs8(dy) << 8;
     uint32_t dist_sq = (dx32 * dx32) + (dy32 * dy32);
 
-    // Fast 32-bit Integer Square Root Algorithm
     uint32_t root = 0;
-    uint32_t bit = 1UL << 30; // Highest power of 4
+    uint32_t bit = 1UL << 30;
 
     while (bit > dist_sq) bit >>= 2;
     while (bit != 0) {
@@ -141,7 +175,7 @@ inline uint16_t true_dist_fixed(int8_t dx, int8_t dy) {
         }
         bit >>= 2;
     }
-    return (uint16_t)root; // Returns perfect 8.8 fixed point distance
+    return (uint16_t)root;
 }
 
-#endif // CH32TEST_FASTMATHS_H
+#endif // HEARTLEDMATRIX_FASTMATHS_H
