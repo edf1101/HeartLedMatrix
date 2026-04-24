@@ -17,7 +17,7 @@
 #include "effects/WaveEffect.h"
 #include "matrix/IS31FL3731.h"
 #include "matrix/LedMapper.h"
-#include "utils/FastMaths.h"
+#include "utils/EEPROM.h"
 
 extern "C" {
     void* __dso_handle = (void*)&__dso_handle;
@@ -51,6 +51,7 @@ LedMapper::Coordinate rawCoords[] = {
     {5, 10}
 };
 
+
 /// Coordinate mapper for heart-shaped LED array
 LedMapper matrixMapper(rawCoords, sizeof(rawCoords) / sizeof(rawCoords[0]));
 
@@ -69,44 +70,14 @@ WaveEffect waveEffect2(&matrix, &matrixMapper, 45, 20, 2, 0);
 Effect* effectList[] = {
     &dotEffect,
     &pulseEffect,
+    &waveEffect2,
     &rainEffect,
     &spiralEffect,
     &waveEffect1,
-    &waveEffect2
 };
 
 const uint8_t NUM_EFFECTS = sizeof(effectList) / sizeof(effectList[0]);
 Effect* currentEffect = nullptr;
-
-/**
- * @brief Sample ADC noise for random number seeding.
- *
- * Reads the ADC to generate a noisy value suitable for
- * seeding the random number generator.
- *
- * @return 16-bit ADC sample
- */
-uint16_t get_adc_noise() {
-    RCC->APB2PCENR |= RCC_APB2Periph_ADC1;
-    ADC1->CTLR2 |= (uint32_t)0x00000001;
-
-    volatile uint32_t timeout = 2000;
-
-    ADC1->CTLR2 |= (uint32_t)0x00000008;
-    while ((ADC1->CTLR2 & (uint32_t)0x00000008) && --timeout);
-
-    timeout = 2000;
-    ADC1->CTLR2 |= (uint32_t)0x00000004;
-    while ((ADC1->CTLR2 & (uint32_t)0x00000004) && --timeout);
-
-    ADC1->RSQR3 = 1;
-    ADC1->CTLR2 |= (uint32_t)0x00400000;
-
-    timeout = 2000;
-    while (!(ADC1->STATR & (uint32_t)0x00000002) && --timeout);
-
-    return (uint16_t)ADC1->RDATAR;
-}
 
 void setup() {
     // Initialize serial on alternate pins (TX on PD6, RX disabled)
@@ -124,15 +95,18 @@ void setup() {
     pinMode(A2, OUTPUT);
     pinMode(C4, OUTPUT);
 
-    // Seed the random number generator with ADC noise
-    uint32_t seed = 0;
-    for (uint8_t i = 0; i < 16; i++) {
-        seed = (seed << 2) ^ get_adc_noise();
-    }
-    seed_rand(seed);
+    // 1. Load the last played effect
+    uint8_t lastIndex = load_effect_index();
 
-    // Start with a random effect
-    uint8_t currentEffectIndex = fast_rand() % NUM_EFFECTS;
+    // 2. Increment and wrap around
+    // NUM_EFFECTS is the size of your effectList array
+    uint8_t nextIndex = (lastIndex + 1) % NUM_EFFECTS;
+
+    // 3. Save it immediately for the NEXT boot
+    save_effect_index(nextIndex);
+
+    // 4. Run the current effect
+    uint8_t currentEffectIndex = lastIndex; // Or use nextIndex if you want it to move forward immediately
     currentEffect = effectList[currentEffectIndex];
     currentEffect->setupEffect();
 }
