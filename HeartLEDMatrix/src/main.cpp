@@ -18,22 +18,26 @@
 #include "matrix/IS31FL3731.h"
 #include "matrix/LedMapper.h"
 #include "utils/EEPROM.h"
+#include "utils/Watchdog.h"
 
+// Provide dummy implementations for C++ runtime functions to avoid linking issues
 extern "C" {
-    void* __dso_handle = (void*)&__dso_handle;
-    int __cxa_atexit(void (*f)(void*), void *p, void *d) { return 0; }
+void* __dso_handle = (void*)&__dso_handle;
+int __cxa_atexit(void (*f)(void*), void* p, void* d) { return 0; }
 }
 
-void operator delete(void* ptr, unsigned int size) noexcept {}
+void operator delete(void* ptr, unsigned int size) noexcept
+{
+}
 
 /// LED matrix driver instance (I2C address 0x74)
 IS31FL3731 matrix = IS31FL3731(0x74);
 
 /// LED enable mask for IS31FL3731: specifies which outputs are active
 const uint8_t activeLEDs[18] = {
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,  // Outputs 0-8 fully enabled
-    0b01111111,                                             // Output 9: 7 of 8 enabled
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00         // Outputs 10-17: disabled
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // Outputs 0-8 fully enabled
+    0b01111111, // Output 9: 7 of 8 enabled
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // Outputs 10-17: disabled
 };
 
 /// Heart-shaped LED coordinate layout (79 total LEDs)
@@ -79,7 +83,40 @@ Effect* effectList[] = {
 const uint8_t NUM_EFFECTS = sizeof(effectList) / sizeof(effectList[0]);
 Effect* currentEffect = nullptr;
 
-void setup() {
+// power latch variables
+const uint32_t POWER_LATCH_TIMEOUT = 15 * 1000; // 15 seconds
+const uint8_t POWER_LATCH_PIN = A2;
+
+void setup()
+{
+    // set the power latch pin high to keep power on, and configure it as an output
+    pinMode(POWER_LATCH_PIN, OUTPUT);
+    digitalWrite(POWER_LATCH_PIN, HIGH);
+    if (RCC->RSTSCKR & RCC_IWDGRSTF)
+    {
+        // KILL POWER
+        while (1)
+        {
+            // try a few times to cut power then cut leds after, as dont want that to cause an issue if it fails
+            pinMode(POWER_LATCH_PIN, OUTPUT);
+            digitalWrite(POWER_LATCH_PIN, LOW);
+            delay(100);
+            pinMode(POWER_LATCH_PIN, OUTPUT);
+            digitalWrite(POWER_LATCH_PIN, LOW);
+            delay(100);
+            matrix.begin(activeLEDs);
+
+            // clear the matrix
+            for (int pix = 0; pix < LedMapper::MAX_LEDS; pix++)
+            {
+                matrix.drawPixel(pix, 0);
+            }
+            matrix.show();
+        }
+    }
+    RCC->RSTSCKR |= RCC_RMVF;
+    init_watchdog();
+
     // Initialize serial on alternate pins (TX on PD6, RX disabled)
     Serial.begin(115200);
     RCC->APB2PCENR |= RCC_AFIOEN;
@@ -92,7 +129,6 @@ void setup() {
     matrix.begin(activeLEDs);
     Serial.println("Matrix initialized!");
 
-    pinMode(A2, OUTPUT);
     pinMode(C4, OUTPUT);
 
     // 1. Load the last played effect
@@ -112,7 +148,10 @@ void setup() {
 }
 
 
-void loop() {
+void loop()
+{
+    feed_watchdog(); // Reset the watchdog timer to prevent reset
+
     static uint32_t lastFrameTime = 0;
     const uint32_t TARGET_FPS = 60;
     const uint32_t FRAME_MICROS = 1000000 / TARGET_FPS;
@@ -120,11 +159,29 @@ void loop() {
     uint32_t now = micros();
 
     // Run effect at fixed 60 FPS rate
-    if (now - lastFrameTime >= FRAME_MICROS) {
+    if (now - lastFrameTime >= FRAME_MICROS)
+    {
         lastFrameTime = now;
 
-        if (currentEffect != nullptr) {
+        if (currentEffect != nullptr)
+        {
             currentEffect->loopEffect();
+        }
+    }
+
+    if (micros() > POWER_LATCH_TIMEOUT * 1000)
+    {
+        while (1)
+        {
+            // clear the matrix before cutting power
+            for (int pix = 0; pix < LedMapper::MAX_LEDS; pix++)
+            {
+                matrix.drawPixel(pix, 0);
+            }
+            matrix.show();
+
+            digitalWrite(POWER_LATCH_PIN, LOW); // Cut power after timeout
+            delay(100);
         }
     }
 }
