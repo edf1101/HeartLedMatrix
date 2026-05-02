@@ -5659,7 +5659,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10uF"
+		(property "Value" "2.2uF"
 			(at 137.16 55.8799 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6488,7 +6488,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10K"
+		(property "Value" "200K"
 			(at 144.78 66.0399 0)
 			(show_name no)
 			(do_not_autoplace no)

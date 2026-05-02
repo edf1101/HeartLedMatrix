@@ -15,6 +15,7 @@
 #include "effects/RainEffect.h"
 #include "effects/SpiralEffect.h"
 #include "effects/WaveEffect.h"
+#include "effects/StarEffect.h"
 #include "matrix/IS31FL3731.h"
 #include "matrix/LedMapper.h"
 #include "utils/EEPROM.h"
@@ -69,6 +70,10 @@ RainEffect rainEffect(&matrix, &matrixMapper, 4, 30, 35);
 SpiralEffect spiralEffect(&matrix, &matrixMapper, 3, 6, 1);
 WaveEffect waveEffect1(&matrix, &matrixMapper, 0, 20, 2, 1);
 WaveEffect waveEffect2(&matrix, &matrixMapper, 45, 20, 2, 0);
+StarEffect starEffect(&matrix, &matrixMapper, 6, 250, 100,5,2);
+DotEffect dotEffect2(&matrix, &matrixMapper, 6, 50, 9);
+
+
 
 /// Array of all available effects
 Effect* effectList[] = {
@@ -76,8 +81,10 @@ Effect* effectList[] = {
     &pulseEffect,
     &waveEffect2,
     &rainEffect,
+    &dotEffect2,
     &spiralEffect,
     &waveEffect1,
+    &starEffect,
 };
 
 const uint8_t NUM_EFFECTS = sizeof(effectList) / sizeof(effectList[0]);
@@ -89,14 +96,18 @@ const uint8_t POWER_LATCH_PIN = A2;
 
 void setup()
 {
+
     // set the power latch pin high to keep power on, and configure it as an output
     pinMode(POWER_LATCH_PIN, OUTPUT);
     digitalWrite(POWER_LATCH_PIN, HIGH);
+
     if (RCC->RSTSCKR & RCC_IWDGRSTF)
     {
         // KILL POWER
         while (1)
         {
+            RCC->RSTSCKR |= RCC_RMVF;
+
             // try a few times to cut power then cut leds after, as dont want that to cause an issue if it fails
             pinMode(POWER_LATCH_PIN, OUTPUT);
             digitalWrite(POWER_LATCH_PIN, LOW);
@@ -114,6 +125,8 @@ void setup()
             matrix.show();
         }
     }
+
+
     RCC->RSTSCKR |= RCC_RMVF;
     init_watchdog();
 
@@ -127,9 +140,9 @@ void setup()
 
     // Initialize the LED matrix
     matrix.begin(activeLEDs);
+    
     Serial.println("Matrix initialized!");
 
-    pinMode(C4, OUTPUT);
 
     // 1. Load the last played effect
     uint8_t lastIndex = load_effect_index();
@@ -145,6 +158,8 @@ void setup()
     uint8_t currentEffectIndex = lastIndex; // Or use nextIndex if you want it to move forward immediately
     currentEffect = effectList[currentEffectIndex];
     currentEffect->setupEffect();
+
+
 }
 
 
