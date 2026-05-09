@@ -2615,10 +2615,22 @@
 		(uuid "055e0abb-7026-4993-ab55-494350998aa8")
 	)
 	(junction
+		(at 123.19 48.26)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "07a42916-55af-402a-80ad-6ed97e97aace")
+	)
+	(junction
 		(at 71.12 52.07)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "20581258-11e1-49e3-94da-739637d9eac9")
+	)
+	(junction
+		(at 133.35 58.42)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "291b7038-f5fd-420a-a54d-271886fe717c")
 	)
 	(junction
 		(at 27.94 54.61)
@@ -2627,16 +2639,16 @@
 		(uuid "356747cf-974e-4b6e-b804-09391531cdf1")
 	)
 	(junction
+		(at 133.35 48.26)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "3b6feb23-3d6e-4099-a63e-d89f12deac47")
+	)
+	(junction
 		(at 64.77 52.07)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "55610724-7be2-4462-968d-25b5d724b3a0")
-	)
-	(junction
-		(at 133.35 48.26)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "5bd067bc-a2c8-4bee-b496-b6ff7b7a55c8")
 	)
 	(junction
 		(at 58.42 97.79)
@@ -2748,7 +2760,7 @@
 	)
 	(wire
 		(pts
-			(xy 107.95 48.26) (xy 123.19 48.26)
+			(xy 107.95 48.26) (xy 115.57 48.26)
 		)
 		(stroke
 			(width 0)
@@ -2888,6 +2900,16 @@
 	)
 	(wire
 		(pts
+			(xy 123.19 58.42) (xy 123.19 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4a323d9b-f572-4408-a219-ad761f157250")
+	)
+	(wire
+		(pts
 			(xy 142.24 30.48) (xy 153.67 30.48)
 		)
 		(stroke
@@ -3018,7 +3040,7 @@
 	)
 	(wire
 		(pts
-			(xy 130.81 48.26) (xy 133.35 48.26)
+			(xy 123.19 48.26) (xy 133.35 48.26)
 		)
 		(stroke
 			(width 0)
@@ -3188,6 +3210,16 @@
 	)
 	(wire
 		(pts
+			(xy 123.19 49.53) (xy 123.19 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d1919f4b-76d2-4c84-a2f3-53b5483ba1f3")
+	)
+	(wire
+		(pts
 			(xy 27.94 54.61) (xy 25.4 54.61)
 		)
 		(stroke
@@ -3265,6 +3297,16 @@
 			(type default)
 		)
 		(uuid "fe444f02-b142-4b8c-a367-c9333392ad96")
+	)
+	(wire
+		(pts
+			(xy 133.35 58.42) (xy 123.19 58.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fea596ee-419e-4662-a7f4-702e80c1ba6e")
 	)
 	(label "SWIO"
 		(at 92.71 129.54 180)
@@ -4016,6 +4058,88 @@
 			(project "LEDHeart"
 				(path "/1df9eab6-db71-4fb9-86bd-f1aa227d734a"
 					(reference "L1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 123.19 53.34 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "5571ce2a-8b2b-40ef-a2d1-014a1f7bbfb4")
+		(property "Reference" "R15"
+			(at 125.73 52.0699 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1M"
+			(at 125.73 54.6099 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 121.412 53.34 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 123.19 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 123.19 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e69719d6-ae3c-4af3-81b3-a8ede679fc27")
+		)
+		(pin "2"
+			(uuid "1c4999bd-4da4-4380-bce9-ab12f31b0bfc")
+		)
+		(instances
+			(project "LEDHeart"
+				(path "/1df9eab6-db71-4fb9-86bd-f1aa227d734a"
+					(reference "R15")
 					(unit 1)
 				)
 			)
@@ -5320,7 +5444,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 127 48.26 90)
+		(at 119.38 48.26 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5331,7 +5455,7 @@
 		(fields_autoplaced yes)
 		(uuid "b567b152-5893-4b39-b601-db59218ebad1")
 		(property "Reference" "R11"
-			(at 127 41.91 90)
+			(at 119.38 41.91 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5341,7 +5465,7 @@
 			)
 		)
 		(property "Value" "1K"
-			(at 127 44.45 90)
+			(at 119.38 44.45 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5351,7 +5475,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
-			(at 127 50.038 90)
+			(at 119.38 50.038 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5362,7 +5486,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 127 48.26 0)
+			(at 119.38 48.26 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5373,7 +5497,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 127 48.26 0)
+			(at 119.38 48.26 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
